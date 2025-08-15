@@ -67,7 +67,7 @@ HTML_PAGE = '''<!DOCTYPE html>
     <title>Sensor Dashboard</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -652,6 +652,146 @@ def data(request: Request):
     """Serve sensor data as JSON"""
     return Response(request, json.dumps(sensor_data), content_type="application/json")
 
+@server.route("/chart.js")
+def chartjs(request: Request):
+    """Serve Chart.js library"""
+    try:
+        with open("chart.js", "r") as f:
+            chartjs_content = f.read()
+        return Response(request, chartjs_content, content_type="application/javascript")
+    except FileNotFoundError:
+        # Fallback to simplified version if file not found
+        chartjs_content = '''
+/* Simplified Chart.js fallback */
+class Chart {
+    constructor(canvas, config) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.config = config;
+        this.data = config.data;
+        this.options = config.options || {};
+        this.update('none');
+    }
+    
+    update(mode) {
+        this.render();
+    }
+    
+    render() {
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        
+        // Clear canvas
+        this.ctx.clearRect(0, 0, width, height);
+        
+        // Draw grid
+        this.drawGrid();
+        
+        // Draw datasets
+        this.data.datasets.forEach((dataset, index) => {
+            this.drawDataset(dataset, index);
+        });
+        
+        // Draw legend if enabled
+        if (this.options.plugins && this.options.plugins.legend && this.options.plugins.legend.display) {
+            this.drawLegend();
+        }
+    }
+    
+    drawGrid() {
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        this.ctx.lineWidth = 1;
+        
+        // Vertical grid lines
+        for (let i = 0; i <= 10; i++) {
+            const x = (width / 10) * i;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, height);
+            this.ctx.stroke();
+        }
+        
+        // Horizontal grid lines
+        for (let i = 0; i <= 10; i++) {
+            const y = (height / 10) * i;
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(width, y);
+            this.ctx.stroke();
+        }
+    }
+    
+    drawDataset(dataset, index) {
+        if (!dataset.data || dataset.data.length === 0) return;
+        
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const data = dataset.data;
+        
+        // Find min/max values
+        const min = Math.min(...data.filter(v => v !== null && v !== undefined));
+        const max = Math.max(...data.filter(v => v !== null && v !== undefined));
+        const range = max - min;
+        
+        if (range === 0) return;
+        
+        // Set line style
+        this.ctx.strokeStyle = dataset.borderColor || '#000';
+        this.ctx.fillStyle = dataset.backgroundColor || 'rgba(0,0,0,0.1)';
+        this.ctx.lineWidth = 2;
+        
+        // Draw line
+        this.ctx.beginPath();
+        data.forEach((value, i) => {
+            if (value === null || value === undefined) return;
+            
+            const x = (width / (data.length - 1)) * i;
+            const y = height - ((value - min) / range) * height;
+            
+            if (i === 0) {
+                this.ctx.moveTo(x, y);
+            } else {
+                this.ctx.lineTo(x, y);
+            }
+        });
+        
+        this.ctx.stroke();
+        
+        // Fill area if enabled
+        if (dataset.fill) {
+            this.ctx.lineTo(width, height);
+            this.ctx.lineTo(0, height);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+    }
+    
+    drawLegend() {
+        const datasets = this.data.datasets;
+        const legendHeight = 20;
+        const legendY = 10;
+        
+        datasets.forEach((dataset, index) => {
+            const x = 10 + (index * 100);
+            const y = legendY;
+            
+            // Draw color box
+            this.ctx.fillStyle = dataset.borderColor || '#000';
+            this.ctx.fillRect(x, y, 15, 10);
+            
+            // Draw label
+            this.ctx.fillStyle = '#000';
+            this.ctx.font = '12px Arial';
+            this.ctx.fillText(dataset.label || `Dataset ${index}`, x + 20, y + 8);
+        });
+    }
+}
+'''
+        return Response(request, chartjs_content, content_type="application/javascript")
+
 # Display sensor information
 if scd4x:
     print(f"Serial Number: {scd4x.serial_number}")
@@ -668,7 +808,7 @@ print("Starting web server...")
 print("Connect to http://<device-ip> to view sensor dashboard")
 
 # Start the server
-server.start(str(wifi.radio.ipv4_address))
+server.start(str(wifi.radio.ipv4_address), 80)
 
 # Main reading loop
 while True:
