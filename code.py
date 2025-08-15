@@ -90,8 +90,14 @@ HTML_PAGE = '''<!DOCTYPE html>
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
+        }
+        .temp-humidity-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 20px;
         }
         .timestamp {
             text-align: center;
@@ -178,19 +184,36 @@ HTML_PAGE = '''<!DOCTYPE html>
         </div>
     </div>
     
+    <div class="temp-humidity-row">
+        <div class="sensor-card" id="tempCard" style="display: none;">
+            <div class="sensor-info">
+                <div class="value-display">
+                    <div class="sensor-label">Temperature (SCD40)</div>
+                    <div class="sensor-value" id="temperature">--</div>
+                    <div>°C</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sensor-card" id="humidityCard" style="display: none;">
+            <div class="sensor-info">
+                <div class="value-display">
+                    <div class="sensor-label">Humidity (SCD40)</div>
+                    <div class="sensor-value" id="humidity">--</div>
+                    <div>%</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="humidityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    
     <div class="bottom-sensors">
-        <div class="sensor-card">
-            <div class="sensor-label">Temperature (SCD40)</div>
-            <div class="sensor-value" id="temperature">--</div>
-            <div>°C</div>
-        </div>
-        
-        <div class="sensor-card">
-            <div class="sensor-label">Humidity (SCD40)</div>
-            <div class="sensor-value" id="humidity">--</div>
-            <div>%</div>
-        </div>
-        
         <div class="sensor-card">
             <div class="sensor-label">Air Quality Index (ENS160)</div>
             <div class="sensor-value" id="ens_aqi">--</div>
@@ -209,12 +232,16 @@ HTML_PAGE = '''<!DOCTYPE html>
         const tvocData = [];
         const ensTvocData = [];
         const ensEco2Data = [];
+        const tempData = [];
+        const humidityData = [];
         
         // Chart instances
         let co2Chart = null;
         let eco2Chart = null;
         let tvocChart = null;
         let ensEco2Chart = null;
+        let tempChart = null;
+        let humidityChart = null;
         
         function createCo2Chart() {
             if (!co2Chart) {
@@ -341,41 +368,119 @@ HTML_PAGE = '''<!DOCTYPE html>
             }
         }
         
-        function createEnsEco2Chart() {
+                function createEnsEco2Chart() {
             if (!ensEco2Chart) {
                 ensEco2Chart = new Chart(document.getElementById('ensEco2Chart'), {
-            type: 'line',
-            data: {
-                labels: timeLabels,
-                datasets: [{
-                    label: 'eCO2 (ENS160)',
-                    data: ensEco2Data,
-                    borderColor: '#E91E63',
-                    backgroundColor: 'rgba(233, 30, 99, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
+                    type: 'line',
+                    data: {
+                        labels: timeLabels,
+                        datasets: [{
+                            label: 'eCO2 (ENS160)',
+                            data: ensEco2Data,
+                            borderColor: '#E91E63',
+                            backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
                     },
-                    x: {
-                        display: false
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                grid: {
+                                    color: 'rgba(0,0,0,0.1)'
+                                }
+                            },
+                            x: {
+                                display: false
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
                     }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
+                });
             }
+        }
+        
+        function createTempChart() {
+            if (!tempChart) {
+                tempChart = new Chart(document.getElementById('tempChart'), {
+                    type: 'line',
+                    data: {
+                        labels: timeLabels,
+                        datasets: [{
+                            label: 'Temperature (°C)',
+                            data: tempData,
+                            borderColor: '#FF5722',
+                            backgroundColor: 'rgba(255, 87, 34, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                grid: {
+                                    color: 'rgba(0,0,0,0.1)'
+                                }
+                            },
+                            x: {
+                                display: false
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function createHumidityChart() {
+            if (!humidityChart) {
+                humidityChart = new Chart(document.getElementById('humidityChart'), {
+                    type: 'line',
+                    data: {
+                        labels: timeLabels,
+                        datasets: [{
+                            label: 'Humidity (%)',
+                            data: humidityData,
+                            borderColor: '#00BCD4',
+                            backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                grid: {
+                                    color: 'rgba(0,0,0,0.1)'
+                                }
+                            },
+                            x: {
+                                display: false
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
                 });
             }
         }
@@ -439,9 +544,19 @@ HTML_PAGE = '''<!DOCTYPE html>
                     }
                     if (data.temperature !== null) {
                         document.getElementById('temperature').textContent = data.temperature.toFixed(1);
+                        if (!tempChart) {
+                            document.getElementById('tempCard').style.display = 'block';
+                            setTimeout(() => createTempChart(), 100);
+                        }
+                        addDataPoint(tempChart, tempData, data.temperature, timeLabel);
                     }
                     if (data.humidity !== null) {
                         document.getElementById('humidity').textContent = data.humidity.toFixed(1);
+                        if (!humidityChart) {
+                            document.getElementById('humidityCard').style.display = 'block';
+                            setTimeout(() => createHumidityChart(), 100);
+                        }
+                        addDataPoint(humidityChart, humidityData, data.humidity, timeLabel);
                     }
                     if (data.ens_aqi !== null) {
                         document.getElementById('ens_aqi').textContent = data.ens_aqi;
