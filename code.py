@@ -47,17 +47,18 @@ sensor_data = {
     'aqi': None
 }
 
-# HTML page with polling for updates
+# HTML page with Chart.js graphing
 HTML_PAGE = '''<!DOCTYPE html>
 <html>
 <head>
     <title>Sensor Dashboard</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f5f5f5;
@@ -86,13 +87,32 @@ HTML_PAGE = '''<!DOCTYPE html>
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 20px;
         }
         .timestamp {
             text-align: center;
             color: #666;
             font-size: 0.9em;
+            margin-top: 20px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        .sensor-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .value-display {
+            min-width: 120px;
+        }
+        .bottom-sensors {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             margin-top: 20px;
         }
     </style>
@@ -103,11 +123,46 @@ HTML_PAGE = '''<!DOCTYPE html>
     
     <div class="grid">
         <div class="sensor-card">
-            <div class="sensor-label">CO2 (SCD40)</div>
-            <div class="sensor-value" id="co2">--</div>
-            <div>ppm</div>
+            <div class="sensor-info">
+                <div class="value-display">
+                    <div class="sensor-label">CO2 (SCD40)</div>
+                    <div class="sensor-value" id="co2">--</div>
+                    <div>ppm</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="co2Chart"></canvas>
+                </div>
+            </div>
         </div>
         
+        <div class="sensor-card">
+            <div class="sensor-info">
+                <div class="value-display">
+                    <div class="sensor-label">eCO2 (CCS811)</div>
+                    <div class="sensor-value" id="eco2">--</div>
+                    <div>ppm</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="eco2Chart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sensor-card">
+            <div class="sensor-info">
+                <div class="value-display">
+                    <div class="sensor-label">TVOC (CCS811)</div>
+                    <div class="sensor-value" id="tvoc">--</div>
+                    <div>ppb</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="tvocChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bottom-sensors">
         <div class="sensor-card">
             <div class="sensor-label">Temperature (SCD40)</div>
             <div class="sensor-value" id="temperature">--</div>
@@ -121,18 +176,6 @@ HTML_PAGE = '''<!DOCTYPE html>
         </div>
         
         <div class="sensor-card">
-            <div class="sensor-label">eCO2 (CCS811)</div>
-            <div class="sensor-value" id="eco2">--</div>
-            <div>ppm</div>
-        </div>
-        
-        <div class="sensor-card">
-            <div class="sensor-label">TVOC (CCS811)</div>
-            <div class="sensor-value" id="tvoc">--</div>
-            <div>ppb</div>
-        </div>
-        
-        <div class="sensor-card">
             <div class="sensor-label">Air Quality Index (ENS160)</div>
             <div class="sensor-value" id="aqi">--</div>
             <div>index</div>
@@ -142,12 +185,154 @@ HTML_PAGE = '''<!DOCTYPE html>
     <div class="timestamp" id="timestamp">Last update: --</div>
 
     <script>
+        // Initialize charts
+        const maxDataPoints = 120;
+        const timeLabels = [];
+        const co2Data = [];
+        const eco2Data = [];
+        const tvocData = [];
+        
+        // Create charts
+        const co2Chart = new Chart(document.getElementById('co2Chart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'CO2 (ppm)',
+                    data: co2Data,
+                    borderColor: '#2196F3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        const eco2Chart = new Chart(document.getElementById('eco2Chart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'eCO2 (ppm)',
+                    data: eco2Data,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        const tvocChart = new Chart(document.getElementById('tvocChart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'TVOC (ppb)',
+                    data: tvocData,
+                    borderColor: '#FF9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        function addDataPoint(chart, dataArray, value, timeLabel) {
+            dataArray.push(value);
+            if (dataArray.length > maxDataPoints) {
+                dataArray.shift();
+            }
+            
+            chart.data.labels = timeLabels;
+            chart.data.datasets[0].data = dataArray;
+            chart.update('none');
+        }
+        
         function updateSensorValues() {
             fetch('/data')
                 .then(response => response.json())
                 .then(data => {
+                    const now = new Date();
+                    const timeLabel = now.toLocaleTimeString();
+                    
                     if (data.co2 !== null) {
                         document.getElementById('co2').textContent = data.co2;
+                        addDataPoint(co2Chart, co2Data, data.co2, timeLabel);
+                    }
+                    if (data.eco2 !== null) {
+                        document.getElementById('eco2').textContent = data.eco2;
+                        addDataPoint(eco2Chart, eco2Data, data.eco2, timeLabel);
+                    }
+                    if (data.tvoc !== null) {
+                        document.getElementById('tvoc').textContent = data.tvoc;
+                        addDataPoint(tvocChart, tvocData, data.tvoc, timeLabel);
                     }
                     if (data.temperature !== null) {
                         document.getElementById('temperature').textContent = data.temperature.toFixed(1);
@@ -155,19 +340,20 @@ HTML_PAGE = '''<!DOCTYPE html>
                     if (data.humidity !== null) {
                         document.getElementById('humidity').textContent = data.humidity.toFixed(1);
                     }
-                    if (data.eco2 !== null) {
-                        document.getElementById('eco2').textContent = data.eco2;
-                    }
-                    if (data.tvoc !== null) {
-                        document.getElementById('tvoc').textContent = data.tvoc;
-                    }
                     if (data.aqi !== null) {
                         document.getElementById('aqi').textContent = data.aqi;
                     }
                     
                     // Update timestamp
-                    const now = new Date();
-                    document.getElementById('timestamp').textContent = 'Last update: ' + now.toLocaleTimeString();
+                    document.getElementById('timestamp').textContent = 'Last update: ' + timeLabel;
+                    
+                    // Update time labels for all charts
+                    if (!timeLabels.includes(timeLabel)) {
+                        timeLabels.push(timeLabel);
+                        if (timeLabels.length > maxDataPoints) {
+                            timeLabels.shift();
+                        }
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching data:', error);
