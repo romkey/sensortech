@@ -8,6 +8,7 @@ import busio
 import adafruit_scd4x
 import adafruit_ccs811
 import adafruit_ens160
+import adafruit_ahtx0
 import json
 import gc
 import wifi
@@ -37,6 +38,13 @@ try:
 except Exception as e:
     print(f"Error initializing ENS160: {e}")
 
+# Initialize AHT21
+aht21 = None
+try:
+    aht21 = adafruit_ahtx0.AHTx0(i2c)
+except Exception as e:
+    print(f"Error initializing AHT21: {e}")
+
 # Store latest sensor data
 sensor_data = {
     'co2': None,
@@ -47,7 +55,9 @@ sensor_data = {
     'aqi': None,
     'ens_aqi': None,
     'ens_tvoc': None,
-    'ens_eco2': None
+    'ens_eco2': None,
+    'aht21_temperature': None,
+    'aht21_humidity': None
 }
 
 # HTML page with Chart.js graphing
@@ -188,9 +198,11 @@ HTML_PAGE = '''<!DOCTYPE html>
         <div class="sensor-card" id="tempCard" style="display: none;">
             <div class="sensor-info">
                 <div class="value-display">
-                    <div class="sensor-label">Temperature (SCD40)</div>
+                    <div class="sensor-label">Temperature</div>
                     <div class="sensor-value" id="temperature">--</div>
-                    <div>°C</div>
+                    <div>°C (SCD40)</div>
+                    <div class="sensor-value" id="aht21_temperature">--</div>
+                    <div>°C (AHT21)</div>
                 </div>
                 <div class="chart-container">
                     <canvas id="tempChart"></canvas>
@@ -201,9 +213,11 @@ HTML_PAGE = '''<!DOCTYPE html>
         <div class="sensor-card" id="humidityCard" style="display: none;">
             <div class="sensor-info">
                 <div class="value-display">
-                    <div class="sensor-label">Humidity (SCD40)</div>
+                    <div class="sensor-label">Humidity</div>
                     <div class="sensor-value" id="humidity">--</div>
-                    <div>%</div>
+                    <div>% (SCD40)</div>
+                    <div class="sensor-value" id="aht21_humidity">--</div>
+                    <div>% (AHT21)</div>
                 </div>
                 <div class="chart-container">
                     <canvas id="humidityChart"></canvas>
@@ -234,6 +248,8 @@ HTML_PAGE = '''<!DOCTYPE html>
         const ensEco2Data = [];
         const tempData = [];
         const humidityData = [];
+        const aht21TempData = [];
+        const aht21HumidityData = [];
         
         // Chart instances
         let co2Chart = null;
@@ -414,12 +430,19 @@ HTML_PAGE = '''<!DOCTYPE html>
                     data: {
                         labels: timeLabels,
                         datasets: [{
-                            label: 'Temperature (°C)',
+                            label: 'Temperature (SCD40)',
                             data: tempData,
                             borderColor: '#FF5722',
                             backgroundColor: 'rgba(255, 87, 34, 0.1)',
                             tension: 0.4,
-                            fill: true
+                            fill: false
+                        }, {
+                            label: 'Temperature (AHT21)',
+                            data: aht21TempData,
+                            borderColor: '#795548',
+                            backgroundColor: 'rgba(121, 85, 72, 0.1)',
+                            tension: 0.4,
+                            fill: false
                         }]
                     },
                     options: {
@@ -438,7 +461,8 @@ HTML_PAGE = '''<!DOCTYPE html>
                         },
                         plugins: {
                             legend: {
-                                display: false
+                                display: true,
+                                position: 'top'
                             }
                         }
                     }
@@ -453,12 +477,19 @@ HTML_PAGE = '''<!DOCTYPE html>
                     data: {
                         labels: timeLabels,
                         datasets: [{
-                            label: 'Humidity (%)',
+                            label: 'Humidity (SCD40)',
                             data: humidityData,
                             borderColor: '#00BCD4',
                             backgroundColor: 'rgba(0, 188, 212, 0.1)',
                             tension: 0.4,
-                            fill: true
+                            fill: false
+                        }, {
+                            label: 'Humidity (AHT21)',
+                            data: aht21HumidityData,
+                            borderColor: '#607D8B',
+                            backgroundColor: 'rgba(96, 125, 139, 0.1)',
+                            tension: 0.4,
+                            fill: false
                         }]
                     },
                     options: {
@@ -477,7 +508,8 @@ HTML_PAGE = '''<!DOCTYPE html>
                         },
                         plugins: {
                             legend: {
-                                display: false
+                                display: true,
+                                position: 'top'
                             }
                         }
                     }
@@ -485,7 +517,7 @@ HTML_PAGE = '''<!DOCTYPE html>
             }
         }
         
-        function addDataPoint(chart, dataArray, value, timeLabel) {
+        function addDataPoint(chart, dataArray, value, timeLabel, datasetIndex = 0) {
             if (!chart) return;
             
             dataArray.push(value);
@@ -494,7 +526,7 @@ HTML_PAGE = '''<!DOCTYPE html>
             }
             
             chart.data.labels = timeLabels;
-            chart.data.datasets[0].data = dataArray;
+            chart.data.datasets[datasetIndex].data = dataArray;
             chart.update('none');
         }
         
@@ -542,21 +574,33 @@ HTML_PAGE = '''<!DOCTYPE html>
                         }
                         addDataPoint(ensEco2Chart, ensEco2Data, data.ens_eco2, timeLabel);
                     }
-                    if (data.temperature !== null) {
-                        document.getElementById('temperature').textContent = data.temperature.toFixed(1);
+                    if (data.temperature !== null || data.aht21_temperature !== null) {
+                        if (data.temperature !== null) {
+                            document.getElementById('temperature').textContent = data.temperature.toFixed(1);
+                            addDataPoint(tempChart, tempData, data.temperature, timeLabel, 0);
+                        }
+                        if (data.aht21_temperature !== null) {
+                            document.getElementById('aht21_temperature').textContent = data.aht21_temperature.toFixed(1);
+                            addDataPoint(tempChart, aht21TempData, data.aht21_temperature, timeLabel, 1);
+                        }
                         if (!tempChart) {
                             document.getElementById('tempCard').style.display = 'block';
                             setTimeout(() => createTempChart(), 100);
                         }
-                        addDataPoint(tempChart, tempData, data.temperature, timeLabel);
                     }
-                    if (data.humidity !== null) {
-                        document.getElementById('humidity').textContent = data.humidity.toFixed(1);
+                    if (data.humidity !== null || data.aht21_humidity !== null) {
+                        if (data.humidity !== null) {
+                            document.getElementById('humidity').textContent = data.humidity.toFixed(1);
+                            addDataPoint(humidityChart, humidityData, data.humidity, timeLabel, 0);
+                        }
+                        if (data.aht21_humidity !== null) {
+                            document.getElementById('aht21_humidity').textContent = data.aht21_humidity.toFixed(1);
+                            addDataPoint(humidityChart, aht21HumidityData, data.aht21_humidity, timeLabel, 1);
+                        }
                         if (!humidityChart) {
                             document.getElementById('humidityCard').style.display = 'block';
                             setTimeout(() => createHumidityChart(), 100);
                         }
-                        addDataPoint(humidityChart, humidityData, data.humidity, timeLabel);
                     }
                     if (data.ens_aqi !== null) {
                         document.getElementById('ens_aqi').textContent = data.ens_aqi;
@@ -666,6 +710,15 @@ while True:
             
         except Exception as e:
             print(f"Error reading ENS160 data: {e}")
+
+    # Read AHT21 data
+    if aht21:
+        try:
+            sensor_data['aht21_temperature'] = aht21.temperature
+            sensor_data['aht21_humidity'] = aht21.relative_humidity
+            
+        except Exception as e:
+            print(f"Error reading AHT21 data: {e}")
 
     # Small delay to prevent overwhelming the system
     time.sleep(0.1)

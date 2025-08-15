@@ -2,3 +2,4 @@ adafruit_scd4x
 adafruit-circuitpython-ccs811
 adafruit-circuitpython-ens160
 adafruit_httpserver
+adafruit-circuitpython-ahtx0
