@@ -551,16 +551,16 @@ HTML_PAGE = '''<!DOCTYPE html>
                         addDataPoint(eco2Chart, eco2Data, data.eco2, timeLabel);
                     }
                     if (data.tvoc !== null || data.ens_tvoc !== null) {
-                        if (data.tvoc !== null) {
-                            document.getElementById('tvoc').textContent = data.tvoc;
-                            addDataPoint(tvocChart, tvocData, data.tvoc, timeLabel);
-                        }
-                        if (data.ens_tvoc !== null) {
-                            addDataPoint(tvocChart, ensTvocData, data.ens_tvoc, timeLabel);
-                        }
                         if (!tvocChart) {
                             document.getElementById('tvocCard').style.display = 'block';
                             setTimeout(() => createTvocChart(), 100);
+                        }
+                        if (data.tvoc !== null) {
+                            document.getElementById('tvoc').textContent = data.tvoc;
+                            addDataPoint(tvocChart, tvocData, data.tvoc, timeLabel, 0);
+                        }
+                        if (data.ens_tvoc !== null) {
+                            addDataPoint(tvocChart, ensTvocData, data.ens_tvoc, timeLabel, 1);
                         }
                     }
                     if (data.ens_eco2 !== null) {
