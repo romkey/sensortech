@@ -1,0 +1,3 @@
+adafruit_scd4x
+adafruit-circuitpython-ccs811
+adafruit-circuitpython-ens160
