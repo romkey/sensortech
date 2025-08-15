@@ -235,9 +235,7 @@ HTML_PAGE = '''<!DOCTYPE html>
                         }
                     },
                     x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
+                        display: false
                     }
                 },
                 plugins: {
@@ -272,9 +270,7 @@ HTML_PAGE = '''<!DOCTYPE html>
                         }
                     },
                     x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
+                        display: false
                     }
                 },
                 plugins: {
@@ -316,9 +312,7 @@ HTML_PAGE = '''<!DOCTYPE html>
                         }
                     },
                     x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
+                        display: false
                     }
                 },
                 plugins: {
@@ -354,9 +348,7 @@ HTML_PAGE = '''<!DOCTYPE html>
                         }
                     },
                     x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
+                        display: false
                     }
                 },
                 plugins: {
