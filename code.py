@@ -92,12 +92,7 @@ HTML_PAGE = '''<!DOCTYPE html>
             color: #666;
             margin-bottom: 10px;
         }
-        .status {
-            background: #e8f5e8;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -137,8 +132,7 @@ HTML_PAGE = '''<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <h1>Sensor Dashboard</h1>
-    <div class="status" id="status">Connected to sensor</div>
+    <h1>Sensor Dashboard <span id="connectionStatus">❌</span></h1>
     
     <div class="grid">
         <div class="sensor-card" id="co2Card" style="display: none;">
@@ -534,6 +528,9 @@ HTML_PAGE = '''<!DOCTYPE html>
             fetch('/data')
                 .then(response => response.json())
                 .then(data => {
+                    // Update connection status to green checkmark
+                    document.getElementById('connectionStatus').textContent = '✅';
+                    
                     const now = new Date();
                     const timeLabel = now.toLocaleTimeString();
                     
@@ -619,8 +616,7 @@ HTML_PAGE = '''<!DOCTYPE html>
                 })
                 .catch(error => {
                     console.error('Error fetching data:', error);
-                    document.getElementById('status').innerHTML = 'Connection error';
-                    document.getElementById('status').style.background = '#ffe8e8';
+                    document.getElementById('connectionStatus').textContent = '❌';
                 });
         }
         
