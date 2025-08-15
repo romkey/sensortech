@@ -125,7 +125,7 @@ HTML_PAGE = '''<!DOCTYPE html>
     <div class="status" id="status">Connected to sensor</div>
     
     <div class="grid">
-        <div class="sensor-card">
+        <div class="sensor-card" id="co2Card" style="display: none;">
             <div class="sensor-info">
                 <div class="value-display">
                     <div class="sensor-label">CO2 (SCD40)</div>
@@ -138,7 +138,7 @@ HTML_PAGE = '''<!DOCTYPE html>
             </div>
         </div>
         
-        <div class="sensor-card">
+        <div class="sensor-card" id="eco2Card" style="display: none;">
             <div class="sensor-info">
                 <div class="value-display">
                     <div class="sensor-label">eCO2 (CCS811)</div>
@@ -151,7 +151,7 @@ HTML_PAGE = '''<!DOCTYPE html>
             </div>
         </div>
         
-        <div class="sensor-card">
+        <div class="sensor-card" id="tvocCard" style="display: none;">
             <div class="sensor-info">
                 <div class="value-display">
                     <div class="sensor-label">TVOC (CCS811)</div>
@@ -164,7 +164,7 @@ HTML_PAGE = '''<!DOCTYPE html>
             </div>
         </div>
         
-        <div class="sensor-card">
+        <div class="sensor-card" id="ensEco2Card" style="display: none;">
             <div class="sensor-info">
                 <div class="value-display">
                     <div class="sensor-label">eCO2 (ENS160)</div>
@@ -210,8 +210,15 @@ HTML_PAGE = '''<!DOCTYPE html>
         const ensTvocData = [];
         const ensEco2Data = [];
         
-        // Create charts
-        const co2Chart = new Chart(document.getElementById('co2Chart'), {
+        // Chart instances
+        let co2Chart = null;
+        let eco2Chart = null;
+        let tvocChart = null;
+        let ensEco2Chart = null;
+        
+        function createCo2Chart() {
+            if (!co2Chart) {
+                co2Chart = new Chart(document.getElementById('co2Chart'), {
             type: 'line',
             data: {
                 labels: timeLabels,
@@ -244,9 +251,13 @@ HTML_PAGE = '''<!DOCTYPE html>
                     }
                 }
             }
-        });
+                });
+            }
+        }
         
-        const eco2Chart = new Chart(document.getElementById('eco2Chart'), {
+        function createEco2Chart() {
+            if (!eco2Chart) {
+                eco2Chart = new Chart(document.getElementById('eco2Chart'), {
             type: 'line',
             data: {
                 labels: timeLabels,
@@ -279,9 +290,13 @@ HTML_PAGE = '''<!DOCTYPE html>
                     }
                 }
             }
-        });
+                });
+            }
+        }
         
-        const tvocChart = new Chart(document.getElementById('tvocChart'), {
+        function createTvocChart() {
+            if (!tvocChart) {
+                tvocChart = new Chart(document.getElementById('tvocChart'), {
             type: 'line',
             data: {
                 labels: timeLabels,
@@ -322,9 +337,13 @@ HTML_PAGE = '''<!DOCTYPE html>
                     }
                 }
             }
-        });
+                });
+            }
+        }
         
-        const ensEco2Chart = new Chart(document.getElementById('ensEco2Chart'), {
+        function createEnsEco2Chart() {
+            if (!ensEco2Chart) {
+                ensEco2Chart = new Chart(document.getElementById('ensEco2Chart'), {
             type: 'line',
             data: {
                 labels: timeLabels,
@@ -357,9 +376,13 @@ HTML_PAGE = '''<!DOCTYPE html>
                     }
                 }
             }
-        });
+                });
+            }
+        }
         
         function addDataPoint(chart, dataArray, value, timeLabel) {
+            if (!chart) return;
+            
             dataArray.push(value);
             if (dataArray.length > maxDataPoints) {
                 dataArray.shift();
@@ -379,21 +402,39 @@ HTML_PAGE = '''<!DOCTYPE html>
                     
                     if (data.co2 !== null) {
                         document.getElementById('co2').textContent = data.co2;
+                        if (!co2Chart) {
+                            document.getElementById('co2Card').style.display = 'block';
+                            setTimeout(() => createCo2Chart(), 100);
+                        }
                         addDataPoint(co2Chart, co2Data, data.co2, timeLabel);
                     }
                     if (data.eco2 !== null) {
                         document.getElementById('eco2').textContent = data.eco2;
+                        if (!eco2Chart) {
+                            document.getElementById('eco2Card').style.display = 'block';
+                            setTimeout(() => createEco2Chart(), 100);
+                        }
                         addDataPoint(eco2Chart, eco2Data, data.eco2, timeLabel);
                     }
-                    if (data.tvoc !== null) {
-                        document.getElementById('tvoc').textContent = data.tvoc;
-                        addDataPoint(tvocChart, tvocData, data.tvoc, timeLabel);
-                    }
-                    if (data.ens_tvoc !== null) {
-                        addDataPoint(tvocChart, ensTvocData, data.ens_tvoc, timeLabel);
+                    if (data.tvoc !== null || data.ens_tvoc !== null) {
+                        if (data.tvoc !== null) {
+                            document.getElementById('tvoc').textContent = data.tvoc;
+                            addDataPoint(tvocChart, tvocData, data.tvoc, timeLabel);
+                        }
+                        if (data.ens_tvoc !== null) {
+                            addDataPoint(tvocChart, ensTvocData, data.ens_tvoc, timeLabel);
+                        }
+                        if (!tvocChart) {
+                            document.getElementById('tvocCard').style.display = 'block';
+                            setTimeout(() => createTvocChart(), 100);
+                        }
                     }
                     if (data.ens_eco2 !== null) {
                         document.getElementById('ens_eco2').textContent = data.ens_eco2.toFixed(1);
+                        if (!ensEco2Chart) {
+                            document.getElementById('ensEco2Card').style.display = 'block';
+                            setTimeout(() => createEnsEco2Chart(), 100);
+                        }
                         addDataPoint(ensEco2Chart, ensEco2Data, data.ens_eco2, timeLabel);
                     }
                     if (data.temperature !== null) {
