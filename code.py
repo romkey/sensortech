@@ -13,7 +13,7 @@ import json
 import gc
 import wifi
 import socketpool
-from adafruit_httpserver import Request, Response, Server
+from adafruit_httpserver import Request, Response, ChunkedResponse, Server
 
 i2c = busio.I2C(board.IO36, board.IO35)
 
@@ -654,12 +654,25 @@ def data(request: Request):
 
 @server.route("/chart.js")
 def chartjs(request: Request):
-    """Serve Chart.js library"""
+    """Serve Chart.js library using proper HTTP chunking to save memory"""
+    def body():
+       # Read an send file in chunks
+        chunk_size = 1024  # 1KB chunks
+        
+        with open("/chart.js", "r") as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                
+                # Send chunk with proper HTTP chunked encoding
+                yield chunk
+
     try:
-        with open("chart.js", "r") as f:
-            chartjs_content = f.read()
-        return Response(request, chartjs_content, content_type="application/javascript")
-    except FileNotFoundError:
+        with open("/chart.js", "r") as f:
+            return ChunkedResponse(request, body)
+
+    except OSError:
         # Fallback to simplified version if file not found
         chartjs_content = '''
 /* Simplified Chart.js fallback */
@@ -706,7 +719,7 @@ class Chart {
         this.ctx.lineWidth = 1;
         
         // Vertical grid lines
-        for (let i = 0; i <= 10; i++) {
+        for (let i = 0; i <= 1; i++) {
             const x = (width / 10) * i;
             this.ctx.beginPath();
             this.ctx.moveTo(x, 0);
