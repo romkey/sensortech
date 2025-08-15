@@ -44,7 +44,10 @@ sensor_data = {
     'humidity': None,
     'eco2': None,
     'tvoc': None,
-    'aqi': None
+    'aqi': None,
+    'ens_aqi': None,
+    'ens_tvoc': None,
+    'ens_eco2': None
 }
 
 # HTML page with Chart.js graphing
@@ -160,6 +163,19 @@ HTML_PAGE = '''<!DOCTYPE html>
                 </div>
             </div>
         </div>
+        
+        <div class="sensor-card">
+            <div class="sensor-info">
+                <div class="value-display">
+                    <div class="sensor-label">eCO2 (ENS160)</div>
+                    <div class="sensor-value" id="ens_eco2">--</div>
+                    <div>ppm</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ensEco2Chart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div class="bottom-sensors">
@@ -177,7 +193,7 @@ HTML_PAGE = '''<!DOCTYPE html>
         
         <div class="sensor-card">
             <div class="sensor-label">Air Quality Index (ENS160)</div>
-            <div class="sensor-value" id="aqi">--</div>
+            <div class="sensor-value" id="ens_aqi">--</div>
             <div>index</div>
         </div>
     </div>
@@ -191,6 +207,8 @@ HTML_PAGE = '''<!DOCTYPE html>
         const co2Data = [];
         const eco2Data = [];
         const tvocData = [];
+        const ensTvocData = [];
+        const ensEco2Data = [];
         
         // Create charts
         const co2Chart = new Chart(document.getElementById('co2Chart'), {
@@ -272,10 +290,55 @@ HTML_PAGE = '''<!DOCTYPE html>
             data: {
                 labels: timeLabels,
                 datasets: [{
-                    label: 'TVOC (ppb)',
+                    label: 'TVOC (CCS811)',
                     data: tvocData,
                     borderColor: '#FF9800',
                     backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    tension: 0.4,
+                    fill: false
+                }, {
+                    label: 'TVOC (ENS160)',
+                    data: ensTvocData,
+                    borderColor: '#9C27B0',
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            }
+        });
+        
+        const ensEco2Chart = new Chart(document.getElementById('ensEco2Chart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'eCO2 (ENS160)',
+                    data: ensEco2Data,
+                    borderColor: '#E91E63',
+                    backgroundColor: 'rgba(233, 30, 99, 0.1)',
                     tension: 0.4,
                     fill: true
                 }]
@@ -334,14 +397,21 @@ HTML_PAGE = '''<!DOCTYPE html>
                         document.getElementById('tvoc').textContent = data.tvoc;
                         addDataPoint(tvocChart, tvocData, data.tvoc, timeLabel);
                     }
+                    if (data.ens_tvoc !== null) {
+                        addDataPoint(tvocChart, ensTvocData, data.ens_tvoc, timeLabel);
+                    }
+                    if (data.ens_eco2 !== null) {
+                        document.getElementById('ens_eco2').textContent = data.ens_eco2.toFixed(1);
+                        addDataPoint(ensEco2Chart, ensEco2Data, data.ens_eco2, timeLabel);
+                    }
                     if (data.temperature !== null) {
                         document.getElementById('temperature').textContent = data.temperature.toFixed(1);
                     }
                     if (data.humidity !== null) {
                         document.getElementById('humidity').textContent = data.humidity.toFixed(1);
                     }
-                    if (data.aqi !== null) {
-                        document.getElementById('aqi').textContent = data.aqi;
+                    if (data.ens_aqi !== null) {
+                        document.getElementById('ens_aqi').textContent = data.ens_aqi;
                     }
                     
                     // Update timestamp
@@ -442,10 +512,9 @@ while True:
     # Read ENS160 data
     if ens:
         try:
-            sensor_data['aqi'] = ens.AQI
-            # Note: ENS160 also provides TVOC and eCO2, but we're using CCS811 values
-            # sensor_data['tvoc'] = ens.TVOC
-            # sensor_data['eco2'] = ens.eCO2
+            sensor_data['ens_aqi'] = ens.AQI
+            sensor_data['ens_tvoc'] = ens.TVOC
+            sensor_data['ens_eco2'] = ens.eCO2
             
         except Exception as e:
             print(f"Error reading ENS160 data: {e}")
