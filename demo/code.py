@@ -35,6 +35,22 @@ except Exception as e:
 ens = None
 try:
     ens = adafruit_ens160.ENS160(i2c)
+    time.sleep(5)
+
+    ens.clear_command()
+    ens.reset()
+    time.sleep(5)
+
+    ens.temperature_compensation = 25
+    ens.humidity_compensation = 50
+
+    print("ENS160 Firmware Vers: ", ens.firmware_version)
+    print("ENS160 part id: ", ens.part_id)
+
+    ens.mode = adafruit_ens160.MODE_IDLE
+    time.sleep(1)
+    ens.mode = adafruit_ens160.MODE_STANDARD
+
 except Exception as e:
     print(f"Error initializing ENS160: {e}")
 
@@ -147,19 +163,9 @@ HTML_PAGE = '''<!DOCTYPE html>
                 </div>
             </div>
         </div>
-        
-        <div class="sensor-card" id="eco2Card" style="display: none;">
-            <div class="sensor-info">
-                <div class="value-display">
-                    <div class="sensor-label">eCO2 (CCS811)</div>
-                    <div class="sensor-value" id="eco2">--</div>
-                    <div>ppm</div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="eco2Chart"></canvas>
-                </div>
-            </div>
-        </div>
+    </div>
+
+    <div class="temp-humidity-row">
         
         <div class="sensor-card" id="tvocCard" style="display: none;">
             <div class="sensor-info">
@@ -174,6 +180,19 @@ HTML_PAGE = '''<!DOCTYPE html>
             </div>
         </div>
         
+        <div class="sensor-card" id="eco2Card" style="display: none;">
+            <div class="sensor-info">
+                <div class="value-display">
+                    <div class="sensor-label">eCO2 (CCS811)</div>
+                    <div class="sensor-value" id="eco2">--</div>
+                    <div>ppm</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="eco2Chart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <div class="sensor-card" id="ensEco2Card" style="display: none;">
             <div class="sensor-info">
                 <div class="value-display">
@@ -186,7 +205,10 @@ HTML_PAGE = '''<!DOCTYPE html>
                 </div>
             </div>
         </div>
+
+
     </div>
+
     
     <div class="temp-humidity-row">
         <div class="sensor-card" id="tempCard" style="display: none;">
@@ -823,6 +845,9 @@ print("Connect to http://<device-ip> to view sensor dashboard")
 # Start the server
 server.start(str(wifi.radio.ipv4_address), 80)
 
+if ens:
+    ens.mode = adafruit_ens160.MODE_STANDARD
+
 # Main reading loop
 while True:
     # Handle web server requests
@@ -853,9 +878,28 @@ while True:
     # Read ENS160 data
     if ens:
         try:
+            status = ens.data_validity
+            if status == adafruit_ens160.NORMAL_OP:
+                print("Normal operation")
+            if status == adafruit_ens160.WARM_UP:
+                print("Warming up")
+            if status == adafruit_ens160.START_UP:
+                print("Initial startup")
+            if status == adafruit_ens160.INVALID_OUT:
+                print("Invalid output")
+
+            if ens.new_data_available:
+                print("ENS160 new data available")
+            else:
+                print("ENS160 NO new data available")
+
             sensor_data['ens_aqi'] = ens.AQI
             sensor_data['ens_tvoc'] = ens.TVOC
             sensor_data['ens_eco2'] = ens.eCO2
+
+            print(f"ENS AQI {sensor_data['ens_aqi']}")
+            print(f"ENS TVOC {sensor_data['ens_tvoc']}")
+            print(f"ENS eCO2 {sensor_data['ens_eco2']}")
             
         except Exception as e:
             print(f"Error reading ENS160 data: {e}")
@@ -865,12 +909,12 @@ while True:
         try:
             sensor_data['aht21_temperature'] = aht21.temperature
             sensor_data['aht21_humidity'] = aht21.relative_humidity
+
+            if ens:
+                ens.temperature_compensation = sensor_data['aht21_temperature']
+                ens.humidity_compensation = sensor_data['aht21_humidity']
             
         except Exception as e:
             print(f"Error reading AHT21 data: {e}")
 
-    # Small delay to prevent overwhelming the system
-    time.sleep(0.1)
-    
-    # Garbage collection to prevent memory issues
-    gc.collect()
+    time.sleep(1)
