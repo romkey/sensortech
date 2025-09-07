@@ -4,7 +4,7 @@ This repo contains the slides for two workshops I recently held at [CETI Institu
 
 The first workshop - [SensorTech](presentations/Sensortech.pdf) - covers broad concepts in sensors - kinds of sensors, things you need to think about, how to prioritize. And ends with a discussions of a sensor I dislike (eCO2 - "equivalent CO2", which guesses how  much CO2 there might be in a space) and a sensor I do like ("Nuclear Event Detector").
 
-The second workshop - [Assisted Assisted Living](presentations/Assisted Assisted Living.pdf) covers a project for monitoring an asissted living space using Home Assistant and Zigbee-based sensors.
+The second workshop - [Assisted Assisted Living](presentations/Assisted%20Assisted%20Living.pdf) covers a project for monitoring an asissted living space using Home Assistant and Zigbee-based sensors.
 
 ## Code
 
